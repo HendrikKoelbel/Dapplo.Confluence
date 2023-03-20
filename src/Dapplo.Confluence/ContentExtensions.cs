@@ -161,32 +161,40 @@ public static class ContentExtensions
         confluenceClient.Behaviour.MakeCurrent();
         pagingInformation ??= new PagingInformation
         {
-            Limit = 200,
-            Start = 0
+            Limit = 200
         };
-        var searchUri = confluenceClient.ConfluenceApiUri.AppendSegments("content").ExtendQuery(new Dictionary<string, object>
-        {
-            {
-                "start", pagingInformation.Start
-            },
-            {
-                "limit", pagingInformation.Limit
-            },
-            {
-                "type", "page"
-            },
-            {
-                "spaceKey", spaceKey
-            },
-            {
-                "title", title
-            }
-        });
 
-        var expand = string.Join(",", ConfluenceClientConfig.ExpandGetContentByTitle ?? Enumerable.Empty<string>());
-        if (!string.IsNullOrEmpty(expand))
+        Uri searchUri;
+
+        if (pagingInformation.Links != null)
         {
-            searchUri = searchUri.ExtendQuery("expand", expand);
+            searchUri = pagingInformation.GetUriFromLinks();
+        }
+        else
+        {
+            searchUri = confluenceClient.ConfluenceApiUri.AppendSegments("content").ExtendQuery(new Dictionary<string, object>
+            {
+                {
+                    "type", "page"
+                },
+                {
+                    "spaceKey", spaceKey
+                },
+                {
+                    "title", title
+                }
+            });
+
+            if (pagingInformation?.Limit != null)
+            {
+                searchUri = searchUri.ExtendQuery("limit", pagingInformation.Limit);
+            }
+
+            var expand = string.Join(",", ConfluenceClientConfig.ExpandGetContentByTitle ?? Enumerable.Empty<string>());
+            if (!string.IsNullOrEmpty(expand))
+            {
+                searchUri = searchUri.ExtendQuery("expand", expand);
+            }
         }
 
         var response = await searchUri.GetAsAsync<HttpResponse<Result<Content>, Error>>(cancellationToken).ConfigureAwait(false);
@@ -205,28 +213,34 @@ public static class ContentExtensions
     public static async Task<Result<Content>> GetChildrenAsync(this IContentDomain confluenceClient, long contentId, PagingInformation pagingInformation = null, int? parentVersion = null, CancellationToken cancellationToken = default)
     {
         if (contentId == 0) throw new ArgumentNullException(nameof(contentId));
-        var contentUri = confluenceClient.ConfluenceApiUri.AppendSegments("content", contentId, "child", "page");
+        
+        Uri contentUri;
 
-        if (pagingInformation?.Start != null)
+        if (pagingInformation?.Links != null)
         {
-            contentUri = contentUri.ExtendQuery("start", pagingInformation.Start);
+            contentUri = pagingInformation.GetUriFromLinks();
+        }
+        else
+        {
+            contentUri = confluenceClient.ConfluenceApiUri.AppendSegments("content", contentId, "child", "page");
+
+            if (pagingInformation?.Limit != null)
+            {
+                contentUri = contentUri.ExtendQuery("limit", pagingInformation.Limit);
+            }
+
+            if (parentVersion.HasValue)
+            {
+                contentUri = contentUri.ExtendQuery("parentVersion", parentVersion);
+            }
+
+            var expand = string.Join(",", ConfluenceClientConfig.ExpandGetChildren ?? Enumerable.Empty<string>());
+            if (!string.IsNullOrEmpty(expand))
+            {
+                contentUri = contentUri.ExtendQuery("expand", expand);
+            }
         }
 
-        if (pagingInformation?.Limit != null)
-        {
-            contentUri = contentUri.ExtendQuery("limit", pagingInformation.Limit);
-        }
-
-        if (parentVersion.HasValue)
-        {
-            contentUri = contentUri.ExtendQuery("parentVersion", parentVersion);
-        }
-
-        var expand = string.Join(",", ConfluenceClientConfig.ExpandGetChildren ?? Enumerable.Empty<string>());
-        if (!string.IsNullOrEmpty(expand))
-        {
-            contentUri = contentUri.ExtendQuery("expand", expand);
-        }
         confluenceClient.Behaviour.MakeCurrent();
 
         var response = await contentUri.GetAsAsync<HttpResponse<Result<Content>, Error>>(cancellationToken).ConfigureAwait(false);
@@ -272,7 +286,9 @@ public static class ContentExtensions
         var searchDetails = new SearchDetails(cqlClause)
         {
             Start = pagingInformation?.Start,
-            Limit = pagingInformation?.Limit
+            Limit = pagingInformation?.Limit,
+            Links = pagingInformation?.Links,
+            PageSource = (pagingInformation == null) ? PageSource.Initial : pagingInformation.PageSource
         };
 
         if (cqlContext != null)
@@ -301,26 +317,31 @@ public static class ContentExtensions
 
         confluenceClient.Behaviour.MakeCurrent();
 
-        var searchUri = confluenceClient.ConfluenceApiUri.AppendSegments("content", "search").ExtendQuery("cql", searchDetails.Cql);
+        Uri searchUri;
 
-        if (searchDetails.Limit.HasValue)
+        if (searchDetails.Links != null)
         {
-            searchUri = searchUri.ExtendQuery("limit", searchDetails.Limit);
+            searchUri = searchDetails.GetUriFromLinks();
         }
-        if (searchDetails.Start.HasValue)
+        else
         {
-            searchUri = searchUri.ExtendQuery("start", searchDetails.Start);
-        }
+            searchUri = confluenceClient.ConfluenceApiUri.AppendSegments("content", "search").ExtendQuery("cql", searchDetails.Cql);
 
-        var expand = string.Join(",", searchDetails.ExpandSearch ?? ConfluenceClientConfig.ExpandSearch ?? Enumerable.Empty<string>());
-        if (!string.IsNullOrEmpty(expand))
-        {
-            searchUri = searchUri.ExtendQuery("expand", expand);
-        }
+            if (searchDetails.Limit.HasValue)
+            {
+                searchUri = searchUri.ExtendQuery("limit", searchDetails.Limit);
+            }
 
-        if (searchDetails.CqlContext != null)
-        {
-            searchUri = searchUri.ExtendQuery("cqlcontext", searchDetails.CqlContext);
+            var expand = string.Join(",", searchDetails.ExpandSearch ?? ConfluenceClientConfig.ExpandSearch ?? Enumerable.Empty<string>());
+            if (!string.IsNullOrEmpty(expand))
+            {
+                searchUri = searchUri.ExtendQuery("expand", expand);
+            }
+
+            if (searchDetails.CqlContext != null)
+            {
+                searchUri = searchUri.ExtendQuery("cqlcontext", searchDetails.CqlContext);
+            }
         }
 
         var response = await searchUri.GetAsAsync<HttpResponse<Result<Content>, Error>>(cancellationToken).ConfigureAwait(false);

@@ -115,41 +115,47 @@ public static class SpaceExtensions
     public static async Task<IList<Space>> GetAllWithParametersAsync(this ISpaceDomain confluenceClient, IEnumerable<string> spaceKeys = null, string type = null, string status = null, string label = null, bool? favourite = null, PagingInformation pagingInformation = null, CancellationToken cancellationToken = default)
     {
         confluenceClient.Behaviour.MakeCurrent();
-        var spacesUri = confluenceClient.ConfluenceApiUri.AppendSegments("space");
 
-        foreach (var spaceKey in spaceKeys ?? Enumerable.Empty<string>())
-        {
-            spacesUri = spacesUri.ExtendQuery("spaceKey", spaceKey);
-        }
+        Uri spacesUri;
 
-        if (!string.IsNullOrEmpty(type))
+        if (pagingInformation?.Links != null)
         {
-            spacesUri = spacesUri.ExtendQuery("type", type);
+            spacesUri = pagingInformation.GetUriFromLinks();
         }
-        if (!string.IsNullOrEmpty(status))
+        else
         {
-            spacesUri = spacesUri.ExtendQuery("status", status);
-        }
-        if (!string.IsNullOrEmpty(label))
-        {
-            spacesUri = spacesUri.ExtendQuery("label", label);
-        }
-        if (favourite.HasValue)
-        {
-            spacesUri = spacesUri.ExtendQuery("favourite", favourite);
-        }
-        var expand = string.Join(",", ConfluenceClientConfig.ExpandGetSpace ?? Enumerable.Empty<string>());
-        if (!string.IsNullOrEmpty(expand))
-        {
-            spacesUri = spacesUri.ExtendQuery("expand", expand);
-        }
-        if (pagingInformation?.Start != null)
-        {
-            spacesUri = spacesUri.ExtendQuery("start", pagingInformation.Start.Value);
-        }
-        if (pagingInformation?.Limit != null)
-        {
-            spacesUri = spacesUri.ExtendQuery("limit", pagingInformation.Limit.Value);
+            spacesUri = confluenceClient.ConfluenceApiUri.AppendSegments("space");
+
+            foreach (var spaceKey in spaceKeys ?? Enumerable.Empty<string>())
+            {
+                spacesUri = spacesUri.ExtendQuery("spaceKey", spaceKey);
+            }
+
+            if (!string.IsNullOrEmpty(type))
+            {
+                spacesUri = spacesUri.ExtendQuery("type", type);
+            }
+            if (!string.IsNullOrEmpty(status))
+            {
+                spacesUri = spacesUri.ExtendQuery("status", status);
+            }
+            if (!string.IsNullOrEmpty(label))
+            {
+                spacesUri = spacesUri.ExtendQuery("label", label);
+            }
+            if (favourite.HasValue)
+            {
+                spacesUri = spacesUri.ExtendQuery("favourite", favourite);
+            }
+            var expand = string.Join(",", ConfluenceClientConfig.ExpandGetSpace ?? Enumerable.Empty<string>());
+            if (!string.IsNullOrEmpty(expand))
+            {
+                spacesUri = spacesUri.ExtendQuery("expand", expand);
+            }
+            if (pagingInformation?.Limit != null)
+            {
+                spacesUri = spacesUri.ExtendQuery("limit", pagingInformation.Limit);
+            }
         }
 
         var response = await spacesUri.GetAsAsync<HttpResponse<Result<Space>, Error>>(cancellationToken).ConfigureAwait(false);

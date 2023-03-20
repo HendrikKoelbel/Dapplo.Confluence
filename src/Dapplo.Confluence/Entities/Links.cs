@@ -66,4 +66,10 @@ public class Links
     /// </summary>
     [JsonProperty("next", DefaultValueHandling = DefaultValueHandling.Ignore)]
     public Uri Next { get; set; }
+
+    /// <summary>
+    ///     A link to the prev result when using paging
+    /// </summary>
+    [JsonProperty("prev", DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public Uri Prev { get; set; }
 }

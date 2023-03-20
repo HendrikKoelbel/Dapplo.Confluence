@@ -12,13 +12,25 @@ namespace Dapplo.Confluence.Entities;
 ///     See: https://docs.atlassian.com/confluence/REST/latest
 /// </summary>
 [JsonObject]
-public class Result<TResult> : PagingInformation, IEnumerable<TResult>
+public class Result<TResult> : IEnumerable<TResult>
 {
     /// <summary>
     ///     Different links for this entity, depending on the entry
     /// </summary>
     [JsonProperty("_links", DefaultValueHandling = DefaultValueHandling.Ignore)]
     public Links Links { get; set; }
+
+    /// <summary>
+    ///     The start of the elements
+    /// </summary>
+    [JsonProperty("start", DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public int? Start { get; set; }
+
+    /// <summary>
+    ///     The result is limited by
+    /// </summary>
+    [JsonProperty("limit", DefaultValueHandling = DefaultValueHandling.Ignore)]
+    public int? Limit { get; set; }
 
     /// <summary>
     ///     The actual requested information
@@ -33,11 +45,17 @@ public class Result<TResult> : PagingInformation, IEnumerable<TResult>
     public int Size { get; set; }
 
     /// <summary>
-    /// Returns if there are more results as requested
+    /// Returns if there are more future results as requested
     /// </summary>
     [JsonIgnore]
     public bool HasNext => Links?.Next != null;
 
+    /// <summary>
+    /// Returns if there are more past results as requested
+    /// </summary>
+    [JsonIgnore]
+    public bool HasPrev => Links?.Prev != null;
+    
     IEnumerator IEnumerable.GetEnumerator()
     {
         return GetEnumerator();
