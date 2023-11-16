@@ -116,31 +116,38 @@ public static class UserDomain
 
         pagingInformation ??= new PagingInformation
         {
-            Limit = 200,
-            Start = 0
+            Limit = 200
         };
-            
-        var groupUri = confluenceClient.ConfluenceApiUri
-            .AppendSegments("user", "memberof")
-            .ExtendQuery(new Dictionary<string, object> {
-                {
-                    "start", pagingInformation.Start
-                },
-                {
-                    "limit", pagingInformation.Limit
-                }
-            });
-        bool isCloudServer = await confluenceClient.IsCloudServer(cancellationToken);
-        if (isCloudServer)
+
+        Uri groupUri;
+
+        if (pagingInformation.Links != null)
         {
-            if (string.IsNullOrEmpty(userIdentifier.AccountId)) throw new ArgumentNullException(nameof(userIdentifier));
-            groupUri = groupUri.ExtendQuery("accountId", userIdentifier.AccountId);
+            groupUri = pagingInformation.GetUriFromLinks();
         }
         else
         {
-            if (string.IsNullOrEmpty(userIdentifier.Username)) throw new ArgumentNullException(nameof(userIdentifier));
-            groupUri = groupUri.ExtendQuery("username", userIdentifier.Username);
+            groupUri = confluenceClient.ConfluenceApiUri
+                .AppendSegments("user", "memberof");
+
+            if (pagingInformation.Limit != null)
+            {
+                groupUri = groupUri.ExtendQuery("limit", pagingInformation.Limit);
+            }
+
+            bool isCloudServer = await confluenceClient.IsCloudServer(cancellationToken);
+            if (isCloudServer)
+            {
+                if (string.IsNullOrEmpty(userIdentifier.AccountId)) throw new ArgumentNullException(nameof(userIdentifier));
+                groupUri = groupUri.ExtendQuery("accountId", userIdentifier.AccountId);
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(userIdentifier.Username)) throw new ArgumentNullException(nameof(userIdentifier));
+                groupUri = groupUri.ExtendQuery("username", userIdentifier.Username);
+            }
         }
+
         confluenceClient.Behaviour.MakeCurrent();
         var response = await groupUri.GetAsAsync<HttpResponse<Result<Group>, Error>>(cancellationToken).ConfigureAwait(false);
         return response.HandleErrors()?.Results;

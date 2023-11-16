@@ -25,19 +25,26 @@ public static class GroupDomain
     public static async Task<IList<Group>> GetGroupsAsync(this IGroupDomain confluenceClient, PagingInformation pagingInformation = null, CancellationToken cancellationToken = default)
     {
         pagingInformation ??= new PagingInformation {
-            Limit = 200,
-            Start = 0
+            Limit = 200
         };
-        var groupUri = confluenceClient.ConfluenceApiUri
-            .AppendSegments("group")
-            .ExtendQuery(new Dictionary<string, object> {
-                {
-                    "start", pagingInformation.Start
-                },
-                {
-                    "limit", pagingInformation.Limit
-                }
-            });
+
+        Uri groupUri;
+
+        if (pagingInformation.Links != null)
+        {
+            groupUri = pagingInformation.GetUriFromLinks();
+        }
+        else
+        {
+            groupUri = confluenceClient.ConfluenceApiUri
+                .AppendSegments("group");
+
+            if (pagingInformation.Limit != null)
+            {
+                groupUri = groupUri.ExtendQuery("limit", pagingInformation.Limit);
+            }
+        }
+
         confluenceClient.Behaviour.MakeCurrent();
         var response = await groupUri.GetAsAsync<HttpResponse<Result<Group>, Error>>(cancellationToken).ConfigureAwait(false);
         return response.HandleErrors()?.Results;
@@ -57,19 +64,26 @@ public static class GroupDomain
 
         pagingInformation ??= new PagingInformation
         {
-            Limit = 200,
-            Start = 0
+            Limit = 200
         };
-        var groupUri = confluenceClient.ConfluenceApiUri
-            .AppendSegments("group", groupName, "member")
-            .ExtendQuery(new Dictionary<string, object> {
-                {
-                    "start", pagingInformation.Start
-                },
-                {
-                    "limit", pagingInformation.Limit
-                }
-            });
+
+        Uri groupUri;
+
+        if (pagingInformation.Links != null)
+        {
+            groupUri = pagingInformation.GetUriFromLinks();
+        }
+        else
+        {
+            groupUri = confluenceClient.ConfluenceApiUri
+                .AppendSegments("group", groupName, "member");
+
+            if (pagingInformation.Limit != null)
+            {
+                groupUri = groupUri.ExtendQuery("limit", pagingInformation.Limit);
+            }
+        }
+
         confluenceClient.Behaviour.MakeCurrent();
         var response = await groupUri.GetAsAsync<HttpResponse<Result<User>, Error>>(cancellationToken).ConfigureAwait(false);
         return response.HandleErrors()?.Results;
